@@ -1,0 +1,94 @@
+//simran gidwani
+//srg61
+#include <dlfcn.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+unsigned long (*compressBound)(unsigned long legnth);
+int (*compress)(void *dest, unsigned long* destLen, const void* source, unsigned long sourceLen);
+int (*uncompress)(void *dest, unsigned long* destLen, const void* source, unsigned long sourceLen);
+
+
+int main(int argc, char* argv[])
+{
+	if (argc < 3)
+	{
+		printf("Incorrect number of arguments");
+		return 0;
+	}
+	
+	void* lib = dlopen("libz.so", RTLD_NOW);
+	
+	if (lib == NULL)
+	{
+		printf("Could not load the library");
+		return 1;
+	}
+
+	compressBound = dlsym(lib, "compressBound");
+	if (compressBound == NULL)
+	{
+		printf("Could not load");
+		return 0;
+	}
+
+	compress = dlsym(lib, "compress");
+	if (compress == NULL)
+	{
+		printf("Could not load");
+		return 0;
+	}
+
+	uncompress = dlsym(lib, "uncompress");
+	if (uncompress == NULL)
+	{
+		printf("Could not load");
+		return 0;
+	}
+
+	FILE* file = fopen(argv[2], "rb+");
+	void* inputU;
+	void* inputC;
+	unsigned long fileSizeU;
+	unsigned long fileSizeC;
+
+	fseek(file, 0, SEEK_END);
+	fileSizeU = ftell(file);
+	fseek(file, 0, SEEK_SET);
+
+	if (strcmp(argv[1], "-c") == 0)
+	{
+		inputU = malloc(fileSizeU);
+		fread(inputU, sizeof(inputU), 1, file);
+		fileSizeC = compressBound(fileSizeU);
+		inputC = malloc(fileSizeC);
+		compress(inputC, &fileSizeC, inputU, fileSizeU);
+
+		fwrite(&fileSizeU, sizeof(unsigned long), 1, stdout);
+		fwrite(&fileSizeC, sizeof(fileSizeC), 1, stdout);
+		fwrite(inputC, fileSizeC, 1, stdout);
+		return 0;
+	}
+	else if (strcmp(argv[1], "-d") == 0)
+	{
+		fread(&fileSizeU, sizeof(fileSizeU), 1, file);
+		fread(&fileSizeC, sizeof(fileSizeC), 1, file);
+		inputC = malloc(fileSizeC);
+		fread(inputC, sizeof(inputC), 1, file);
+		inputU = malloc(fileSizeU);
+		uncompress(inputU, &fileSizeU, inputC, fileSizeC);
+		fwrite(inputU, sizeof(inputU), 1, stdout);
+		return 0;
+	}
+	else
+	{
+		printf("invalid argument made");
+		return 0;
+	}
+
+	free(inputU);
+	free(inputC);
+
+
+}
